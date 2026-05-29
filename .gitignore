@@ -13,7 +13,6 @@ tmp/
 *.tar.gz
 
 # Ignore build and distribution directories
-backup/
 bin/
 dist/
 !web/dist/
