@@ -1,95 +1,138 @@
-[English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md)
+# 3X-UI 安装与全局代理配置
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./media/3x-ui-dark.png">
-    <img alt="3x-ui" src="./media/3x-ui-light.png">
-  </picture>
-</p>
+> 原项目：[MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui)
 
-[![Release](https://img.shields.io/github/v/release/mhsanaei/3x-ui.svg)](https://github.com/MHSanaei/3x-ui/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/mhsanaei/3x-ui/release.yml.svg)](https://github.com/MHSanaei/3x-ui/actions)
-[![GO Version](https://img.shields.io/github/go-mod/go-version/mhsanaei/3x-ui.svg)](#)
-[![Downloads](https://img.shields.io/github/downloads/mhsanaei/3x-ui/total.svg)](https://github.com/MHSanaei/3x-ui/releases/latest)
-[![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true)](https://www.gnu.org/licenses/gpl-3.0.en.html)
-[![Go Reference](https://pkg.go.dev/badge/github.com/mhsanaei/3x-ui/v3.svg)](https://pkg.go.dev/github.com/mhsanaei/3x-ui/v3)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mhsanaei/3x-ui/v3)](https://goreportcard.com/report/github.com/mhsanaei/3x-ui/v3)
-
-**3X-UI** — advanced, open-source web-based control panel designed for managing Xray-core server. It offers a user-friendly interface for configuring and monitoring various VPN and proxy protocols.
-
-> [!IMPORTANT]
-> This project is only for personal usage, please do not use it for illegal purposes, and please do not use it in a production environment.
-
-As an enhanced fork of the original X-UI project, 3X-UI provides improved stability, broader protocol support, and additional features.
-
-## Quick Start
+## 一、安装 x-ui
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)
 ```
 
-For full documentation, please visit the [project Wiki](https://github.com/MHSanaei/3x-ui/wiki).
+安装完成后面板默认端口为 `54321`，首次登录后建议修改端口和密码。
 
-## Database Options
+---
 
-3X-UI supports two backends, chosen during the install:
+## 二、Ubuntu 服务器全局代理（tun2socks）
 
-- **SQLite** (default) — a single file at `/etc/x-ui/x-ui.db`. Zero setup, ideal for small/medium deployments.
-- **PostgreSQL** — recommended for high client counts or multi-node setups. The installer can install PostgreSQL locally for you, or accept a DSN to an existing server.
+将服务器所有流量通过 SOCKS5 代理转发，同时保持 SSH 和 x-ui 正常访问。
 
-At runtime the backend is selected via env vars (the installer writes these to `/etc/default/x-ui` for you):
-
-```
-XUI_DB_TYPE=postgres
-XUI_DB_DSN=postgres://xui:password@127.0.0.1:5432/xui?sslmode=disable
-```
-
-### Migrating an existing SQLite install to PostgreSQL
+### 2.1 安装 unzip
 
 ```bash
-x-ui migrate-db --dsn "postgres://xui:password@127.0.0.1:5432/xui?sslmode=disable"
-# then set XUI_DB_TYPE and XUI_DB_DSN in /etc/default/x-ui and restart:
-systemctl restart x-ui
+apt install unzip -y
 ```
 
-The source SQLite file is left untouched; remove it manually once you have verified the new backend.
+### 2.2 安装 tun2socks
 
-### Docker
-
-The default `docker compose up -d` keeps using SQLite. To run with the bundled PostgreSQL service, uncomment the two `XUI_DB_*` env lines in `docker-compose.yml` and start with the profile:
+优先从官方下载最新版本，若官方不可用则使用本仓库备份：
 
 ```bash
-docker compose --profile postgres up -d
+wget https://github.com/xjasonlyu/tun2socks/releases/latest/download/tun2socks-linux-amd64.zip \
+  || wget https://raw.githubusercontent.com/PMJ520/vpn-3x-ui/master/backup/tun2socks-linux-amd64.zip
+
+unzip tun2socks-linux-amd64.zip
+mv tun2socks-linux-amd64 /usr/local/bin/tun2socks
+chmod +x /usr/local/bin/tun2socks
 ```
 
-## A Special Thanks to
+### 2.3 下载 proxy-tun.sh 脚本
 
-- [alireza0](https://github.com/alireza0/)
+```bash
+wget https://raw.githubusercontent.com/PMJ520/vpn-3x-ui/master/proxy-tun.sh -O /usr/local/bin/proxy-tun.sh
+chmod +x /usr/local/bin/proxy-tun.sh
+```
 
-## Acknowledgment
+下载后编辑脚本，修改顶部的代理信息：
 
-- [Iran v2ray rules](https://github.com/chocolate4u/Iran-v2ray-rules) (License: **GPL-3.0**): _Enhanced v2ray/xray and v2ray/xray-clients routing rules with built-in Iranian domains and a focus on security and adblocking._
-- [Russia v2ray rules](https://github.com/runetfreedom/russia-v2ray-rules-dat) (License: **GPL-3.0**): _This repository contains automatically updated V2Ray routing rules based on data on blocked domains and addresses in Russia._
+```bash
+nano /usr/local/bin/proxy-tun.sh
+```
 
-## Community Tools
+```bash
+PROXY="socks5://用户名:密码@代理IP:端口"
+PROXY_IP="代理IP"   # 必须填 IP，不能填域名
+```
 
-Tools and integrations built by the community around 3x-ui.
+> x-ui 面板和入站端口范围默认为 `2900:3000`，按实际情况修改脚本中对应的端口范围。
 
-- [terraform-provider-3x-ui](https://github.com/batonogov/terraform-provider-threexui) (License: **MIT**): _Manage inbounds, clients, panel settings, and Xray configuration as code with Terraform / OpenTofu._
+### 2.4 配置为系统服务（开机自启）
 
-## Support project
+```bash
+wget https://raw.githubusercontent.com/PMJ520/vpn-3x-ui/master/proxy-tun.service -O /etc/systemd/system/proxy-tun.service
 
-**If this project is helpful to you, you may wish to give it a**:star2:
+systemctl daemon-reload
+systemctl enable proxy-tun
+systemctl start proxy-tun
+```
 
-<a href="https://www.buymeacoffee.com/MHSanaei" target="_blank">
-<img src="./media/default-yellow.png" alt="Buy Me A Coffee" style="height: 70px !important;width: 277px !important;" >
-</a>
+### 2.5 常用命令
 
-</br>
-<a href="https://nowpayments.io/donation/hsanaei" target="_blank" rel="noreferrer noopener">
-   <img src="./media/donation-button-black.svg" alt="Crypto donation button by NOWPayments">
-</a>
+```bash
+systemctl status proxy-tun    # 查看状态
+systemctl stop proxy-tun      # 停止
+systemctl restart proxy-tun   # 重启
+journalctl -u proxy-tun -f    # 查看日志
+```
 
-## Stargazers over Time
+### 2.6 验证代理是否生效
 
-[![Stargazers over time](https://starchart.cc/MHSanaei/3x-ui.svg?variant=adaptive)](https://starchart.cc/MHSanaei/3x-ui)
+```bash
+curl https://api.ipify.org
+# 返回代理服务器 IP 即为成功
+```
+
+---
+
+## 三、x-ui Xray 配置（避免双重代理）
+
+x-ui 作为代理服务器，其出站流量不应再走 tun0，否则会造成双重代理。通过 xray 的 `sockopt mark` 功能让出站流量直接绕过 tun0。
+
+### 3.1 修改 direct outbound 配置
+
+进入 x-ui 面板 → **Xray Configs** → **Outbounds** → 编辑 `direct`，将配置改为：
+
+```json
+{
+  "protocol": "freedom",
+  "settings": {
+    "domainStrategy": "AsIs",
+    "finalRules": [
+      {
+        "action": "allow",
+        "ip": [
+          "geoip:private"
+        ]
+      }
+    ]
+  },
+  "streamSettings": {
+    "sockopt": {
+      "mark": 255
+    }
+  },
+  "tag": "direct"
+}
+```
+
+保存后点击 **Restart Xray**。
+
+### 3.2 流量分流说明
+
+| 流量类型 | 处理方式 |
+|---|---|
+| SSH（端口 22） | 绕过 tun0，走原始网关 |
+| x-ui 面板和入站（2900-3000） | 绕过 tun0，走原始网关 |
+| xray 出站（替客户端代理） | xray mark 255，走原始网关 |
+| 服务器自身其他流量 | 走 tun0 → SOCKS5 代理 |
+
+---
+
+## 四、注意事项
+
+- `PROXY_IP` 必须填写 IP 地址，不能是域名，防止 DNS 解析走 tun0 造成死循环
+- x-ui 面板端口和入站端口范围需与脚本中端口范围保持一致
+- 如果 SSH 断连，通过云服务商控制台或云助手执行以下命令恢复：
+  ```bash
+  pkill tun2socks; ip route del default dev tun0 2>/dev/null; ip tuntap del mode tun dev tun0 2>/dev/null
+  ```
+- 服务器重启后 systemd 会自动重启代理服务
